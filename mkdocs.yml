@@ -1,0 +1,164 @@
+site_name: trunkd + keyup
+site_description: Install and run trunkd (P25 trunking recorder) and keyup (call archive and transcription).
+site_url: https://pwsh.github.io/radio-docs/
+repo_url: https://github.com/pwsh/radio-docs
+repo_name: pwsh/radio-docs
+edit_uri: edit/main/docs/
+copyright: Copyright &copy; 2026 Eric Holzhueter
+
+# Pinned refs of the code repos that scripts/fetch-reference.sh pulls into
+# docs/reference/{trunkd,keyup}/: a tag, or a full commit sha. Bump these per release.
+# When bumping, also update the same refs in docs/reference/index.md
+# and in the GitHub links to files outside docs/ (grep -rn 'blob/' docs --exclude-dir=reference).
+extra:
+  trunkd_ref: v0.2.2
+  keyup_ref: v0.1.1
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/pwsh/trunkd
+      name: trunkd on GitHub
+    - icon: fontawesome/brands/github
+      link: https://github.com/pwsh/keyup
+      name: keyup on GitHub
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - navigation.indexes
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.tabs.link
+    - content.action.edit
+    - content.action.view
+  icon:
+    edit: material/pencil
+    view: material/eye
+  palette:
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to system preference
+
+# Hides the edit/view buttons on the pulled reference pages (see the hook's docstring).
+hooks:
+  - hooks/reference_pages.py
+
+plugins:
+  - search
+  - redirects:
+      redirect_maps:
+        # The pulled trees have no index page; send the bare folder URLs to the landing page.
+        reference/trunkd/index.md: reference/index.md
+        reference/keyup/index.md: reference/index.md
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      # GitHub-style heading ids (an em dash leaves "--"), so the anchors used by
+      # the pulled reference pages, written for GitHub, resolve here too.
+      slugify: !!python/object/apply:pymdownx.slugs.slugify
+        kwds:
+          case: lower
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.keys
+
+validation:
+  nav:
+    not_found: warn
+    absolute_links: warn
+  links:
+    not_found: warn
+    anchors: warn
+    absolute_links: warn
+    unrecognized_links: warn
+
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - Hardware: hardware.md
+  - Install:
+      - trunkd on Linux: install/trunkd-linux.md
+      - trunkd on Windows: install/trunkd-windows.md
+      - keyup: install/keyup.md
+  - Connect trunkd to keyup: connect.md
+  - Configure your P25 system:
+      - From RadioReference: configure/radioreference.md
+      - Manually: configure/manual.md
+      - From an sdrtrunk playlist: configure/sdrtrunk-import.md
+  - Transcription: transcription.md
+  - TLS and reverse proxies: tls.md
+  - Exporters: exporters.md
+  - Operations: operations.md
+  - Troubleshooting: troubleshooting.md
+  - Legal and privacy: legal-privacy.md
+  - Reference:
+      - reference/index.md
+      - trunkd:
+          - Configuration: reference/trunkd/configuration.md
+          - Installing on Linux: reference/trunkd/install-linux.md
+          - Installing on Windows: reference/trunkd/install-windows.md
+          - Windows service: reference/trunkd/windows-service.md
+          - SDR hardware: reference/trunkd/sdr-hardware.md
+          - Operating trunkd: reference/trunkd/operations.md
+          - Control panel: reference/trunkd/panel.md
+          - Talking to keyup: reference/trunkd/keyup.md
+          - Recorder link: reference/trunkd/recorder-link.md
+          - Capturing IQ: reference/trunkd/capturing-test-iq.md
+          - Internals:
+              - Architecture: reference/trunkd/ARCHITECTURE.md
+              - Non-voice data: reference/trunkd/NON-VOICE-DATA.md
+              - P25 Phase 1 decoder spec: reference/trunkd/P25P1-SPEC.md
+              - Spec gaps and resolutions: reference/trunkd/SPEC-GAPS.md
+              - "Porting notes: demod and sync": reference/trunkd/extraction/demod-sync.md
+              - "Porting notes: NID and BCH": reference/trunkd/extraction/bch-nid-nac.md
+              - "Porting notes: trellis and Viterbi": reference/trunkd/extraction/viterbi-trellis.md
+              - "Porting notes: trunk manager": reference/trunkd/extraction/trunk-manager.md
+      - keyup:
+          - Pointing a recorder at keyup: reference/keyup/RECORDERS.md
+          - Talkgroup fields: reference/keyup/TALKGROUPS.md
+          - Site channel audit: reference/keyup/CHANNEL_AUDIT.md
+          - Speech-to-text: reference/keyup/STT.md
+          - Audio profiles: reference/keyup/AUDIO.md
+          - HTTPS: reference/keyup/HTTPS.md
+          - Reverse proxy: reference/keyup/REVERSE-PROXY.md
+          - Exporters: reference/keyup/EXPORTERS.md
+          - Broadcastify feed statistics: reference/keyup/BCFY_STATS.md
+          - Operating the database: reference/keyup/OPERATIONS.md
+          - Radio events: reference/keyup/RADIO_EVENTS.md
+          - Call reconciliation: reference/keyup/RECONCILIATION.md
+          - Links and webhooks: reference/keyup/WEBHOOKS.md
+          - RSS and Atom feeds: reference/keyup/FEEDS.md
+          - Embedding transcripts: reference/keyup/EMBED.md
+          - Analytics: reference/keyup/ANALYTICS.md
+          - Migrating an sdrtrunk archive: reference/keyup/MIGRATION.md
+          - Internals and design notes:
+              - Architecture: reference/keyup/ARCHITECTURE.md
+              - RadioReference write-back: reference/keyup/RR_WRITEBACK.md
+              - Word clouds (not built): reference/keyup/WORD_CLOUD.md

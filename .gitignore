@@ -1,0 +1,8 @@
+site/
+# Pulled at build time by scripts/fetch-reference.sh; only the landing page is tracked.
+docs/reference/*
+!docs/reference/index.md
+.venv/
+__pycache__/
+.cache/
+_linkcheck/
