@@ -3,7 +3,7 @@
 The shortest path from nothing to transcribed calls: **one SDR, trunkd and keyup on one Linux
 box**, with keyup transcribing on the CPU. Each step links to the full page when you want more.
 
-<!-- Commands on this page are copied from the trunkd v0.2.2 and keyup v0.1.1 docs named beside
+<!-- Commands on this page are copied from the trunkd v0.3.1 and keyup v0.2.0 docs named beside
      each one. Not verified on a clean host by the docs build. -->
 
 ## What you need

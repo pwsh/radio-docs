@@ -46,16 +46,17 @@ On top of those:
   no speech in them (a key-up and release).
 * **Unit-to-unit (private) calls** are never sent to Broadcastify Calls or OpenMHz. The live
   Feed carries them unless you turn `broadcastify_feed_include_unit_calls` off.
-* **Broadcastify Calls takes trunked systems only.** A call from a system keyup does not
-  consider trunked is refused with the reason `not_trunked`. Whether a system is trunked is
-  shown, and can be set, in the Systems list on the **Sites** page. A system that was first
-  created by trunkd's uploads has no protocol recorded, so keyup counts it as **not trunked**:
-  mark your P25 system **Trunked** on the Sites page before you switch Broadcastify Calls on
-  (its enable switch stays disabled while no system is trunked).
-* **Analog conventional calls** never go to Broadcastify Calls with trunkd v0.2.2 and keyup
-  v0.1.1 or later, whatever system they are filed under. The Feed and OpenMHz still take them
-  like any talkgroup, and older releases send them to Broadcastify Calls too. See
-  [Analog conventional calls](#analog-conventional-calls).
+* **The global Calls and OpenMHz accounts take trunked systems only.** A call from a system
+  keyup does not consider trunked is refused with the reason `not_trunked`. Whether a system is
+  trunked is shown, and can be set, in the Systems list on the **Sites** page. A system that was
+  first created by trunkd's uploads has no protocol recorded, so keyup counts it as **not
+  trunked**: mark your P25 system **Trunked** on the Sites page before you switch Broadcastify
+  Calls on (its enable switch stays disabled while Calls has nothing it could publish).
+* **Analog calls are conventional, whatever system they are filed under.** A call trunkd marks
+  `nbfm` or `am` (every call from a `[[channel]]`) is treated like a call from a conventional
+  system. From keyup v0.2.0, conventional calls go to Broadcastify Calls or OpenMHz **only**
+  through a destination set on their own system; the Feed takes them like any talkgroup. See
+  [Conventional systems](#conventional-systems).
 * A call already more than `export_max_age_minutes` (60) old when the exporter first sees it is
   not picked up, so a worker that was down for an afternoon does not replay it.
 
@@ -69,7 +70,7 @@ all ticked by default:
 | Column | Used by |
 | --- | --- |
 | `export_broadcastify` | the Broadcastify **Feed** |
-| `export_bcfy_calls` | **Broadcastify Calls** (held off for talkgroups of a system that is not trunked) |
+| `export_bcfy_calls` | **Broadcastify Calls** (held off for talkgroups Calls could never publish: a conventional system with no Calls account of its own) |
 | `export_openmhz` | **OpenMHz** |
 
 The boxes only matter once you pick a mode. Each service has a talkgroup mode
@@ -89,59 +90,76 @@ once.
 ### Per-system limits
 
 `export_broadcastify_systems` and `export_openmhz_systems` limit a service to some of your
-systems: comma-separated **keyup** system ids (not the remote service's ids). Empty means every
-system.
+systems: **keyup** system ids (not the remote service's ids), picked from a list on the Exports
+page. Empty means every system the service could publish.
 
-## Analog conventional calls
+From keyup v0.2.0 the Feed has its own list, `export_broadcastify_feed_systems`: blank (the
+default) follows the Broadcastify Calls list, as the Feed always did; `all` streams every system,
+conventional ones included; or pick the systems yourself.
 
-!!! warning "Analog channels still go to the Feed and OpenMHz unless you keep them out"
-    trunkd uploads each analog `[[channel]]` call as an ordinary **group call** with the
-    channel's `talkgroup` number (see [Configure manually](configure/manual.md#analog-conventional-channels)).
-    To the Feed and OpenMHz it is a talkgroup like any other, and in the shipped `all` mode
-    every talkgroup is published.
+## Conventional systems
 
-    **Broadcastify Calls** accepts trunked-system calls only, and from **trunkd v0.2.2** and
-    **keyup v0.1.1** analog channel calls are never sent there, whatever system label they
-    carry. You need **both** upgrades: keyup v0.1.1 keeps the `mode=nbfm` field trunkd sends
-    with every channel call, and its own Broadcastify uploader refuses those calls
-    (`not_trunked`); trunkd v0.2.2 refuses them itself when it uploads to Broadcastify Calls
-    directly (`skipped_conventional` in its panel). With an older trunkd or keyup, analog
-    calls filed under your P25 system's label can still reach Broadcastify Calls, so follow
-    the steps below for it too.
+keyup archives trunked systems and conventional ones (NBFM fire and EMS channels, AM airband)
+side by side. Broadcastify Calls and OpenMHz file every upload under one remote system, and the
+global account's system is your trunked one, so a conventional channel sent there would be
+filed under the wrong system. From keyup v0.2.0 the rule is:
 
-What happens depends on the system you file the channel under:
-
-| Channel's `system` | Broadcastify Calls | Feed | OpenMHz |
+| Call | Broadcastify Calls | OpenMHz | Feed |
 | --- | --- | --- | --- |
-| the P25 system's label (the default when `system` is unset) | never sent (trunkd v0.2.2 + keyup v0.1.1); **published**, as if it were a P25 talkgroup, with older releases | published | published |
-| a label of its own, e.g. `"Example County Fire"` | refused (`not_trunked`) when keyup uploads; see the recorder-direct note below for older releases | published | published |
+| a **trunked** system with no destination of its own | the global account | the global account | follows the Feed's selection |
+| a trunked system with its own destination | its own account | its own system | follows the Feed's selection |
+| a **conventional** call (system not trunked, or marked `nbfm`/`am` by trunkd) with its own destination | its own account | its own system | follows the Feed's selection |
+| a conventional call with no destination of its own | **never sent** (`not_trunked`) | **never sent** (`not_trunked`) | follows the Feed's selection |
 
-To keep analog calls off the Feed and OpenMHz (and off Broadcastify Calls on older releases),
-use one of these:
+"Marked by trunkd" means a conventional channel filed under your P25 system's label is still
+conventional: it goes nowhere on Calls or OpenMHz unless that system has a destination of its
+own. Giving analog channels their own `system` in trunkd is still the tidy way
+([Configure manually](configure/manual.md#system-and-talkgroup-numbers)): keyup records a system
+first created by a channel's calls as `NBFM` or `AM`, not trunked.
 
-1. **Give analog channels their own `system`** in trunkd. keyup treats that system as not
-   trunked (from keyup v0.1.1 a system first created by a channel's calls is recorded as
-   `NBFM`), so Broadcastify Calls refuses it, and step 2 can leave it out. Check the Systems
-   list on the Sites page.
-2. **Limit the services to your P25 systems**: set `export_openmhz_systems` and
-   `export_broadcastify_systems` to the keyup ids of the trunked systems only. The Broadcastify
-   setting covers both the Feed and Calls.
-3. **Or** switch the service's mode to `deny` and clear the analog talkgroups' tick boxes
-   (`export_broadcastify` for the Feed, `export_openmhz` for OpenMHz).
+### A destination of the system's own
 
-If you do want an analog channel on the Feed or OpenMHz, leave its boxes ticked: both services
-take analog calls.
+On the **Sites** page, open the system and fill in its **Export destinations** (admin only):
 
-!!! danger "Recorder-direct Broadcastify uploads with trunkd before v0.2.2"
-    With **Broadcastify Calls uploaded by: recorder** (below) and the mode left at `all`,
-    keyup sends trunkd no talkgroup list, and a trunkd **older than v0.2.2** uploads **every
-    group call it records, including analog channel calls**, under your Broadcastify system
-    id. It cannot tell which keyup system a call belongs to, so keyup's trunked-only rule does
-    not stop this. Upgrade trunkd; until then, if a recorder carries analog channels, use
-    `allow` or `deny`: keyup then sends an explicit list of talkgroup numbers from trunked
-    systems only. Because that list is numbers only, also give analog channels talkgroup
-    numbers that no P25 talkgroup on the system uses. trunkd v0.2.2 and later never send a
-    conventional channel's call to Broadcastify Calls, in any mode.
+* **Broadcastify Calls:** the Calls API key and the Calls system id Broadcastify issued for
+  that system. For a conventional system, Broadcastify identifies each channel by a
+  **frequency-slot id** instead of a talkgroup: enter it as the **Broadcastify slot** in each
+  channel's talkgroup edit dialog. A channel without one is skipped with the reason
+  `no_bcfy_slot`, which names the channel that needs it.
+* **OpenMHz:** the system's OpenMHz short name and API key.
+
+Both halves of a pair must be set; one without the other is not a destination. The keys are
+write-only, like the global ones: the page shows only whether one is set. Then, as for any
+system, turn the service's switch on, and add the system to `export_broadcastify_systems` or
+`export_openmhz_systems` if that list is not empty.
+
+* Per-system Calls accounts are production credentials. Under the **development**
+  environment only the global development pair is used, so conventional systems are not
+  uploaded there.
+* A service with no global account still runs when some system has a destination of its
+  own; any other call it would have sent is skipped with `no_destination`.
+* New talkgroups on a conventional system with no Calls account of its own start with the
+  Calls box off, and removing a system's Calls destination turns its talkgroups' Calls boxes
+  off again.
+
+### Keeping analog calls off the Feed
+
+The Feed is only audio, with no system identity, so none of the above applies to it. To keep
+analog channels off it, either set `export_broadcastify_feed_systems` to your P25 systems
+(leaving it blank follows the Calls list, which you may have limited already), or switch the
+Broadcastify mode to `deny` and clear the analog talkgroups' `export_broadcastify` boxes.
+
+??? note "Before keyup v0.2.0, and trunkd before v0.2.2"
+    With **keyup v0.1.1**, analog calls never went to Broadcastify Calls, but **OpenMHz took
+    them** under the global short name like any talkgroup; to keep them off it, limit
+    `export_openmhz_systems` to your trunked systems or use `deny` mode. With **keyup v0.1.0**
+    or **trunkd before v0.2.2**, analog calls filed under your P25 system's label could also
+    reach Broadcastify Calls.
+
+    **Recorder-direct uploads with trunkd before v0.2.2:** with *Broadcastify Calls uploaded
+    by: recorder* and the mode left at `all`, an old trunkd uploads every group call it records,
+    analog channels included, under your Broadcastify system id. Upgrade trunkd. trunkd v0.2.2
+    and later never send a conventional channel's call to Broadcastify Calls, in any mode.
 
 ## Turning one on
 
@@ -178,9 +196,11 @@ never uploaded twice. Failed uploads retry with backoff and park after `EXPORT_M
   (default: about 3 s after the call ends) or `recorder`: each trunkd uploads at call end,
   typically under a second, with credentials keyup pushes to it. keyup remains the record of
   what was uploaded, and uploads anything no recorder reported. A recorder with
-  `[uplink] direct_broadcastify = false` refuses the credentials. trunkd v0.2.2 and later
-  never upload a conventional channel's call; with an older trunkd, read the
-  [analog warning](#analog-conventional-calls) above before using it.
+  `[uplink] direct_broadcastify = false` refuses the credentials. Recorders upload only for
+  trunked systems that use the global account; calls of a system with a destination of its
+  own are left to keyup. trunkd v0.2.2 and later never upload a conventional channel's call;
+  with an older trunkd, read the note at the end of
+  [Conventional systems](#conventional-systems) before using it.
 
 ## Broadcastify Feed
 
@@ -196,15 +216,17 @@ A mount takes **one** source at a time. Stop your current broadcasting client, p
 The queue is kept near live: if calls back up past `broadcastify_feed_max_backlog_s` (120 s),
 the oldest are dropped.
 
-The Feed follows the Broadcastify selection (mode, `export_broadcastify` tick boxes, systems),
+The Feed follows the Broadcastify selection (mode, `export_broadcastify` tick boxes) and its
+own system list (`export_broadcastify_feed_systems`, see [Per-system limits](#per-system-limits)),
 the encryption and minimum-duration filters, but plays key-ups with no speech, and plays
 unit-to-unit calls unless `broadcastify_feed_include_unit_calls` is off.
 
 ## OpenMHz
 
 `OPENMHZ_API_KEY` (the system's API key) and `OPENMHZ_SHORT_NAME` (the system's short name,
-the path segment in its OpenMHz URL). OpenMHz accepts conventional systems, so the
-[analog warning](#analog-conventional-calls) applies in full.
+the path segment in its OpenMHz URL) are the global account, for your trunked system. OpenMHz
+also hosts conventional systems: give each its own short name and key on the Sites page
+([Conventional systems](#conventional-systems)).
 
 ## Advanced: Broadcastify feed statistics
 

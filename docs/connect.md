@@ -9,8 +9,8 @@ The reference for both sides: keyup's
 [RECORDERS.md](reference/keyup/RECORDERS.md) and trunkd's
 [keyup.md](reference/trunkd/keyup.md).
 
-<!-- Commands on this page are copied from keyup v0.1.1 docs/RECORDERS.md and
-     scripts/bootstrap.sh, and trunkd v0.2.2 docs/install-linux.md, docs/operations.md,
+<!-- Commands on this page are copied from keyup v0.2.0 docs/RECORDERS.md and
+     scripts/bootstrap.sh, and trunkd v0.3.1 docs/install-linux.md, docs/operations.md,
      docs/keyup.md and docs/windows-service.md. Not verified on a clean host by the docs build. -->
 
 ## 1. Get a recorder token

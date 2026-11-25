@@ -183,6 +183,37 @@ The script never touches `.env`. **Back up the database before a release whose n
 migration you cannot undo.** trunkd spools calls and retries them while the API restarts, so a
 normal update loses none of its calls.
 
+!!! note "Upgrading to keyup v0.2.0"
+    v0.2.0 carries seven Alembic migrations (the tone plan and matched pages, per-system
+    transcription settings and the `AM airband` profile, per-system export destinations, radio
+    alias provenance, radio sightings, radio list imports and radio suggestions). They add
+    tables and columns and run in the update's **migrate** step like any other; nothing extra
+    is needed. Take a backup first (`systemctl start keyup-db-backup` runs the nightly job now):
+    each migration can be downgraded, but a downgrade drops the new tables and columns with
+    whatever was written to them.
+
+    Changes you may notice after it:
+
+    * **Guests see fewer radio names.** The new `guest_radio_visibility` setting defaults to
+      `on_air_only`: a visitor who is not signed in sees the on-air talker alias, the radio ID
+      and the roster's unit callsign, but no longer the radio directory or aliases typed in or
+      imported. `public` restores the old behaviour. See
+      [Legal and privacy](legal-privacy.md#radio-names-and-guests).
+    * **Analog calls stop going to the global OpenMHz account.** Calls from a conventional
+      system, or that trunkd marks `nbfm` or `am`, now go to Broadcastify Calls or OpenMHz only
+      through a destination set on their own system. See
+      [Exporters](exporters.md#conventional-systems).
+    * **Existing radio names are marked as coming from a recorder**, the weakest source,
+      because keyup cannot tell which ones were typed in. From now on an on-air alias the
+      radio sends often enough, or an imported list, can replace them; each change is logged
+      in the activity feed as `radio.alias_changed` with the old value. If you typed names in
+      by hand and want to review that first, set `ALIAS_PROMOTE_ENABLED=false` in `.env`
+      before upgrading (or turn **On-air aliases** off in Admin → Settings → Directory). See
+      [Radio names](radios.md).
+    * **Hotwords are off by default** on every backend kind; only a system's own hotwords are
+      ever sent, and only by a backend with `use_hotwords` on. See
+      [Transcription](transcription.md#per-system-settings).
+
 ### Postgres sizing
 
 All Postgres tuning lives as `-c` flags on the `db` service in `compose.yaml`, not in
@@ -473,6 +504,30 @@ anything whose meaning changed. The panel's `/about` page shows which build is r
     `scripts/grant-rt.sh` after every build, because file capabilities do not survive a
     rebuild.
 
+=== "Linux (unattended)"
+
+    From trunkd v0.3.0, `update-trunkd.sh` and its daily timer install the latest published
+    release by themselves. Each run checks the new binary against the live config first,
+    restarts the service, waits for the P25 site tuners to lock, and rolls back to
+    `/usr/local/bin/trunkd.prev` if they do not.
+
+    ```bash
+    sudo update-trunkd.sh --check            # 0 = up to date, 10 = an update is available
+    sudo systemctl start trunkd-update       # one run now
+    journalctl -u trunkd-update -n 50        # what the last runs did
+    ```
+
+    | Exit | Meaning |
+    | --- | --- |
+    | 0 | up to date, or updated and verified |
+    | 1 | failed: nothing changed, or rolled back |
+    | 2 | staged, not installed (`--stage-only`) |
+    | 3 | another run holds the lock |
+    | 10 | `--check`: an update is available |
+
+    Installing it and its settings (`PIN` to stay on one series, `SOURCE=git` to build on the
+    box): [trunkd on Linux](install/trunkd-linux.md#automatic-updates).
+
 === "Windows (script)"
 
     `scripts\windows\update-trunkd.ps1` (PowerShell 7, elevated) fast-forwards the checkout,
@@ -507,6 +562,40 @@ anything whose meaning changed. The panel's `/about` page shows which build is r
 
     Stop both services before copying. Otherwise Windows refuses to overwrite `trunkd.exe`, and
     the recorder comes back on the old binary without any other sign that the update failed.
+
+### Alerts to ntfy (Linux)
+
+keyup's health alerts only see what reaches keyup. From trunkd v0.3.0, `trunkd-watch.sh` and a
+two-minute timer watch the recorder box itself and push to an [ntfy](https://ntfy.sh) topic:
+one message when a problem appears, one when it has stayed fixed for two runs, nothing in
+between. Every check is off until its setting names something:
+
+| Setting in `/etc/trunkd/watch.conf` | Watches |
+| --- | --- |
+| `DISK_PATHS` | used space per mount point (warning at `DISK_WARN` 85 %, critical at `DISK_CRIT` 95 %) |
+| `SERVICES` | units that must be active, e.g. `trunkd` or an SDR vendor's service |
+| `FAILED_UNITS` | oneshots that must not be failed, e.g. `trunkd-update.service` |
+| `PANEL_URL` | trunkd's panel: every enabled P25 site tuner locked, no device unit failed or retrying, no sample overflow two runs running, uploads flowing (spool under `SPOOL_WARN_CALLS`, 50) |
+| `CHECK_CLOCK` | the clock is NTP-synchronised (set `0` inside a container) |
+| `PVE_STORAGE`, `PVE_THINPOOL`, `PVE_CONTAINERS` | on a Proxmox host: storage use, LVM thin pools, containers running |
+
+`NTFY_URL` is the server and topic (`https://ntfy.example.org/radio`), `NTFY_TOKEN` an access
+token if the topic needs one. Left empty, messages go to the journal only. If the panel's
+`[server] auth` needs a token for reads, set `PANEL_TOKEN` too. Install it on the recorder (and
+on its hypervisor, if you want that watched) as root, from the release archive's `update/`
+directory or the checkout's `scripts/linux/`:
+
+```bash
+sudo install -m 0755 update/trunkd-watch.sh /usr/local/sbin/trunkd-watch.sh
+sudo install -m 0644 update/trunkd-watch.service update/trunkd-watch.timer /etc/systemd/system/
+sudo install -m 0600 update/watch.conf.example /etc/trunkd/watch.conf     # set NTFY_URL and the checks
+sudo trunkd-watch.sh --status       # every check and whether it is raised; sends nothing
+sudo trunkd-watch.sh --test         # one test notification
+sudo systemctl daemon-reload && sudo systemctl enable --now trunkd-watch.timer
+```
+
+Keep `watch.conf` mode `0600` if it holds an ntfy token. The watchdog does not restart
+anything: that is the [health monitor](#health-monitor)'s job.
 
 ### Keep the clock right
 

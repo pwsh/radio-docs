@@ -6,7 +6,7 @@ importers read it, and each takes a different half:
 
 | Importer | Reads | Writes |
 | --- | --- | --- |
-| `trunkd import-sdrtrunk` | the playlist's **channels**: P25 sites and NBFM channels | a starting `trunkd.toml`, printed to stdout |
+| `trunkd import-sdrtrunk` | the playlist's **channels**: P25 sites, NBFM and AM channels | a starting `trunkd.toml`, printed to stdout |
 | `keyup playlist import` | the playlist's **aliases**: talkgroup and radio names, groups, colours | keyup's talkgroup and radio directory |
 
 Neither changes the playlist, and sdrtrunk can keep running while you prepare trunkd. Do not
@@ -28,14 +28,14 @@ devices, sites and channels taken from the playlist. Treat it as a draft.
 | P25 Phase 1 channel | `[[site]]` | `system`, `site` (the channel name when the site is blank), `control_frequencies`, `traffic_pool_size`, the hunt's rotation delay, and `enabled`. Several playlist entries for one (system, site) are merged into one site with the union of their control frequencies. |
 | NBFM channel | `[[channel]]` | `name`, `system`, `site`, `frequency`, `talkgroup`, `bandwidth_hz` and `enabled`. A **25 kHz** channel is kept but written `enabled = false`, since trunkd records 12.5 kHz only. |
 | sdrtrunk squelch thresholds | `[channel.squelch]` `noise_open`, `noise_close`, `hysteresis_open`, `hysteresis_close` | Carried so nothing is lost, then **ignored** by trunkd (one info line at start): they mean nothing to trunkd's dB squelch. |
-| AM channel | `[[channel]]` with `mode = "am"` | Kept, not recorded. |
+| AM channel | `[[channel]]` with `mode = "am"` | Recorded from trunkd v0.3.0 (older releases kept it but skipped it). See [AM airband channels](manual.md#am-airband-channels). |
 | Disabled entries | kept, with `enabled = false` | Nothing is dropped just because it was off. |
 | DMR, NXDN, LTR and other decoders | nothing | Out of scope for trunkd. |
 | Aliases | nothing | Names go into keyup instead (below). |
 
 The playlist says nothing about your radios, so the importer **invents placeholder tuners**:
 one `[[device]]` per site (`sdr0`, `sdr1`, ...), centred between that site's lowest and
-highest control channel, plus one per group of NBFM channels no site tuner can hear. Each is
+highest control channel, plus one per group of NBFM or AM channels no site tuner can hear. Each is
 written as `backend = "soapy"`, `soapy = "driver=hackrf"`, `sample_rate = 20000000`.
 
 ### What to fix afterwards
@@ -86,9 +86,13 @@ docker compose run --rm migrate keyup playlist import /site/default.xml --system
 the same name as trunkd's `system_label`. Without it the import uses the only system there
 is, and refuses if there are none or several.
 
-The importer **overwrites** aliases: importing a playlist is an explicit act and the playlist
-is your own naming. A talkgroup that has never been heard is created with no calls so it
-shows up in the directory. It also takes a CSV (`tgid,alias,group,category,service_tag,agency_code,color`,
+The importer **overwrites** talkgroup aliases: importing a playlist is an explicit act and the
+playlist is your own naming. A talkgroup that has never been heard is created with no calls so
+it shows up in the directory. **Radio** names are treated more carefully from keyup v0.2.0: a
+name you typed in is never replaced, a radio this archive has never heard is skipped and
+counted (`radios_not_heard`) rather than created, and every value is kept as a candidate on the
+radio's page. See [Radio names](../radios.md), which also covers importing other radio lists
+with a dry run. It also takes a CSV (`tgid,alias,group,category,service_tag,agency_code,color`,
 the same columns keyup's talkgroup export writes), so you can export, edit in a spreadsheet and
 re-import.
 

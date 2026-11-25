@@ -9,10 +9,10 @@ copyright: Copyright &copy; 2026 Eric Holzhueter
 # Pinned refs of the code repos that scripts/fetch-reference.sh pulls into
 # docs/reference/{trunkd,keyup}/: a tag, or a full commit sha. Bump these per release.
 # When bumping, also update the same refs in docs/reference/index.md
-# and in the GitHub links to files outside docs/ (grep -rn 'blob/' docs --exclude-dir=reference).
+# and in the GitHub links to files outside docs/ (grep -rn 'blob/\|tree/' docs --exclude-dir=reference).
 extra:
-  trunkd_ref: v0.2.2
-  keyup_ref: v0.1.1
+  trunkd_ref: v0.3.1
+  keyup_ref: v0.2.0
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/pwsh/trunkd
@@ -113,6 +113,8 @@ nav:
       - Manually: configure/manual.md
       - From an sdrtrunk playlist: configure/sdrtrunk-import.md
   - Transcription: transcription.md
+  - Tone pages: pages.md
+  - Radio names: radios.md
   - TLS and reverse proxies: tls.md
   - Exporters: exporters.md
   - Operations: operations.md
@@ -143,6 +145,7 @@ nav:
       - keyup:
           - Pointing a recorder at keyup: reference/keyup/RECORDERS.md
           - Talkgroup fields: reference/keyup/TALKGROUPS.md
+          - Importing a radio alias list: reference/keyup/RADIO_IMPORT.md
           - Site channel audit: reference/keyup/CHANNEL_AUDIT.md
           - Speech-to-text: reference/keyup/STT.md
           - Audio profiles: reference/keyup/AUDIO.md
@@ -152,6 +155,7 @@ nav:
           - Broadcastify feed statistics: reference/keyup/BCFY_STATS.md
           - Operating the database: reference/keyup/OPERATIONS.md
           - Radio events: reference/keyup/RADIO_EVENTS.md
+          - Tone pages: reference/keyup/TONE_PAGES.md
           - Call reconciliation: reference/keyup/RECONCILIATION.md
           - Links and webhooks: reference/keyup/WEBHOOKS.md
           - RSS and Atom feeds: reference/keyup/FEEDS.md

@@ -224,6 +224,51 @@ The prompt is capped at 800 characters and filled talkgroup names first and plac
 long place list cannot crowd out channel names. Rewrites and hallucination patterns apply to
 every backend, because they run on the text keyup gets back.
 
+## Per-system settings
+
+The settings above describe one radio system. A second system that shares nothing with it, such
+as an airband receiver or an analog fire channel, gets worse transcripts from a prompt full of
+the first system's talkgroup names and unit roster. From keyup v0.2.0 each system can carry its
+own settings, in the system's dialog on the **Sites** page:
+
+| Setting | What it does |
+| --- | --- |
+| Prompt lead (`stt_prompt_lead`) | Replaces the words "public safety radio traffic" in the prompt's first sentence, e.g. `air traffic control radio`. |
+| Vocabulary (`stt_vocabulary`) | The system's own terms, separated by commas, semicolons or lines. |
+| Archive-wide vocabulary (`stt_global_vocabulary`) | On by default: mixes in every system's talkgroup names, the unit roster, radio aliases, `STT_PLACES` and `STT_PROMPT_EXTRA`. Turn it off for a system that should hear only its own terms. |
+| Hotwords (`stt_hotwords`) | Terms sent as hotwords with this system's calls, only by a backend whose `use_hotwords` is on. |
+| Default audio profile | The audio clean-up used for this system's calls whose talkgroup has no profile of its own. |
+
+A system with none of the first three set gets exactly the prompt it got before. A change
+reaches new transcription jobs within ten minutes. The same settings from the shell, for a
+fictional airband system:
+
+```sh
+docker compose exec api keyup system-stt "Example Airband"     # show the current settings
+docker compose exec api keyup system-stt "Example Airband" \
+  --lead "air traffic control radio" \
+  --vocabulary "approach, tower, ground, runway, squawk, altimeter" \
+  --no-global-vocabulary \
+  --default-profile "AM airband"
+docker compose exec api keyup system-stt "Example Airband" --lead ""   # an empty value clears a field
+```
+
+or with `PATCH /api/systems/{id}` and a token with the `write` scope. keyup's
+[STT.md](reference/keyup/STT.md#per-system-prompts) shows the order the prompt is built in.
+
+**Hotwords.** From keyup v0.2.0, `use_hotwords` on a backend is honoured by the
+`openai_compatible` and `faster_whisper_local` kinds as well, and is **off by default** on
+every kind: the only hotwords keyup ever sends are a system's own. Turn it on (Admin →
+Backends) only for a backend and model you have checked with them; STT.md section 3.5 shows a
+model reading a hotword list back as a transcript.
+
+**Audio for AM.** keyup v0.2.0 adds a built-in `AM airband` audio profile: the 300–3000 Hz
+voice band, a denoise aimed at carrier hiss, and a gentle gate that turns the hiss between words
+down rather than chopping it. It is not assigned to anything; make it the airband system's
+default profile, as above, or assign it per talkgroup in **Admin → Audio**. (`Aircraft cabin`
+is a different thing, a notch for rotor noise on a medevac channel.) See keyup's
+[AUDIO.md](reference/keyup/AUDIO.md).
+
 ## Other knobs
 
 | `.env` | Default | What it does |

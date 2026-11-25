@@ -41,7 +41,7 @@ other program first, or give trunkd a different board.
   a 9 MHz site, so a site normally takes several dongles, each a `[[device]]` with its own
   `center_frequency` and a `bands` list splitting the site's downlink between them. See
   [Configure manually](configure/manual.md).
-- **Conventional (analog NBFM) channels** come out of the same channelizer, so the same rule
+- **Conventional (analog NBFM and AM) channels** come out of the same channelizer, so the same rule
   applies. Keep `center_frequency` at least 25 kHz from every channel, and keep channels inside
   the radio's analog filter, which on some radios is narrower than the sample rate.
 

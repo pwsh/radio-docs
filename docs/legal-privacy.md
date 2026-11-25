@@ -51,6 +51,8 @@ when, and on which talkgroup. Treat it with the same care as the rest of the arc
 | Call metadata (talkgroup, radio IDs, times) | keyup database | kept for ever | Includes encrypted calls |
 | Unit-to-unit (private) calls | keyup, if followed | as calls | trunkd follows them by default; `[recorder] follow_unit_calls = false` turns it off |
 | Presence: registrations and affiliations | keyup `radio_events` | **90 days** (`RADIO_EVENTS_KEEP_DAYS`) | Recorded whether or not the person ever transmits |
+| Radio sightings: the sites and talkgroups each radio was heard on | keyup `radio_sightings` | **365 days** after last heard at that site (`radio_sightings_keep_days`) | Rolled up from calls and presence, so it outlives them; signed-in readers only |
+| Radio names: aliases, where each came from, and imported lists | keyup directory | until you change or revert them | See [Radio names and guests](#radio-names-and-guests) |
 | Raw non-voice event log | trunkd `events/` | **14 days** (`[recorder] event_log_keep_days`) | Stays on the recorder unless you turn on `event_log_archive` |
 | Decoded location reports (LRRP), on systems that send them | trunkd | — | Live location of radio users; treat as highly sensitive |
 | Visitor analytics | Google Analytics, only if you turn it on | Google's settings | See [Analytics](#analytics) |
@@ -94,6 +96,29 @@ You can also limit what reaches the archive at all:
   tells the recorder not to send it.
 - **On the recorder.** trunkd's `[recorder] skip_talkgroups` never records the listed talkgroups.
   The grant is still decoded and counted, but no tuner is used and nothing is uploaded.
+
+### Radio names and guests
+
+A radio's alias often names a person or a vehicle's crew. keyup v0.2.0 keeps track of where
+each alias came from (the radio's own on-air alias, an operator, an imported list, a
+playlist, a recorder) and lets you decide how much of that a **guest** (a reader who is not
+signed in) sees, with `guest_radio_visibility` in **Admin → Settings → Access**
+(`GUEST_RADIO_VISIBILITY` in `.env` is only the first value):
+
+| Value | A guest sees |
+| --- | --- |
+| `public` | the radio directory and radio pages as signed-in readers see them (the behaviour before v0.2.0) |
+| `on_air_only` (default) | the alias the radio sent on air, its ID, and the unit callsign and names from your roster; not the radio directory, radio pages, or aliases typed in or imported |
+| `hidden` | no radio identity and no roster names at all |
+
+Under `on_air_only`, `guest_alias_sources` (default `talker`) can also show guests aliases an
+operator typed in (`talker,manual`). Imported, playlist and recorder aliases are never shown to
+guests under it. The setting covers every way calls leave the archive without a sign-in: the
+web app, the live feed, the API, the transcript embed and **every RSS/Atom feed**, whoever
+made the feed. Where a radio was heard, alias suggestions and import batches are for
+signed-in readers under every value. It does not change what the exporters send. Details:
+keyup's [OPERATIONS.md, section 8](reference/keyup/OPERATIONS.md#8-guest-radio-visibility)
+and [Radio names](radios.md).
 
 ### Search engines
 
@@ -182,9 +207,14 @@ the `/privacy` page true to what you actually send.
 - **Embeds.** `/embed/transcripts` may be framed by other sites (`EMBED_FRAME_ANCESTORS`, any site
   by default) and shows whatever an anonymous visitor may read.
 - **Webhooks.** Off unless `WEBHOOK_URL` and `WEBHOOK_EVENTS` are set. Set `WEBHOOK_SECRET` so
-  the receiver can verify each delivery.
+  the receiver can verify each delivery. Every call payload carries the call's transcript and,
+  from keyup v0.2.0, the departments it paged.
+- **Alerts** (webhook, Discord, ntfy, email) carry what the rule describes: a `page` alert names
+  the departments paged and, if the transcript is in, its text.
 - **trunkd's live audio monitor** (`[server] live_audio`) is off by default, and the panel listens
   on loopback only. If you expose the panel (`bind = "0.0.0.0:8080"`), set `[server] tokens`.
+  The live audio stream counts as a read, so under `[server] auth = "changes"` or `"none"`
+  anyone who can reach the panel can listen to it.
 
 ## Third-party services and their terms
 
@@ -210,7 +240,8 @@ submitter has verified. keyup never submits anything to RadioReference automatic
 keyup can export to two Broadcastify products, both **off by default**:
 
 - **Broadcastify Calls**, one upload per call, using an API key and system ID from the Calls
-  dashboard. Trunked systems only.
+  dashboard. Conventional systems only with an account of their own
+  ([Exporters](exporters.md#conventional-systems)).
 - **A Broadcastify live feed**, one continuous audio stream to a feed mount, using the feed's
   mount credentials.
 

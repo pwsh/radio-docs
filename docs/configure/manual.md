@@ -1,11 +1,11 @@
 # Configure manually
 
 This page writes a `trunkd.toml` by hand: one P25 trunked site, plus a few analog
-conventional (NBFM) channels on a second tuner. Everything here describes a fictional
+conventional channels (NBFM, and AM airband) on other tuners. Everything here describes a fictional
 "Example County"; replace the frequencies with your own.
 
 The complete, commented reference is
-[`trunkd.example.toml`](https://github.com/pwsh/trunkd/blob/v0.2.2/trunkd.example.toml), and every
+[`trunkd.example.toml`](https://github.com/pwsh/trunkd/blob/v0.3.1/trunkd.example.toml), and every
 key is explained in trunkd's
 [configuration.md](../reference/trunkd/configuration.md). This page is
 the short path through them.
@@ -126,8 +126,9 @@ a `bands` list saying which part of the site it records, e.g.
 
 ## Analog conventional channels
 
-A `[[channel]]` records one analog NBFM frequency (a fire dispatch, a public works channel)
-call by call. It is cut out of a tuner's capture by the same channelizer the P25 sites use, so
+A `[[channel]]` records one analog frequency call by call: an NBFM channel (a fire dispatch,
+a public works channel) or, from trunkd v0.3.0, an AM channel in the airband (a tower, a
+CTAF). It is cut out of a tuner's capture by the same channelizer the P25 sites use, so
 a tuner can carry a site and channels at once, or channels only. A config with channels and
 no `[[site]]` is valid.
 
@@ -166,12 +167,48 @@ close_db = 6.0
 hang_ms  = 1500
 ```
 
-### 12.5 kHz only
+### NBFM: 12.5 kHz only
 
-trunkd records **narrowband (12.5 kHz) channels only**. `bandwidth_hz` defaults to `12500`
-and that is the only accepted value: `25000` is refused at start-up. A wideband channel
-imported from sdrtrunk is written disabled for this reason. `mode = "am"` is accepted but not
-recorded (skipped with a warning).
+trunkd records **narrowband (12.5 kHz) FM channels only**. `bandwidth_hz` defaults to `12500`
+and that is the only accepted value for NBFM: `25000` is refused at start-up. A wideband FM
+channel imported from sdrtrunk is written disabled for this reason.
+
+### AM airband channels
+
+From trunkd v0.3.0, `mode = "am"` records an AM channel, such as an airport tower or a CTAF in
+the 118–137 MHz airband. (Older releases accepted the setting and skipped the channel with a
+warning.)
+
+```toml
+[[device]]
+id               = "air0"
+backend          = "soapy"
+driver           = "airspy"
+sample_rate      = 10000000
+center_frequency = 123000000       # usable roughly 118.0-128.0 MHz
+
+[[channel]]
+name         = "Example Tower"
+system       = "Example Airband"
+frequency    = 118300000
+mode         = "am"
+bandwidth_hz = 8333                # 8333, 12500 or 25000: the channel raster
+```
+
+What is different from NBFM:
+
+* **The detector.** An envelope detector with an AGC that tracks the carrier, so the audio
+  level follows how deeply the voice modulates the carrier, not how strong the signal is.
+* **No tone squelch.** AM channels are carrier squelch only; a `tone` on an AM channel is a
+  start-up error (`tone is NBFM only`). The `[channel.squelch]` settings and the call
+  splitting work as for NBFM.
+* **No de-emphasis.** `deemphasis_us` is ignored.
+* **`bandwidth_hz`** names the airband raster, `8333`, `12500` or `25000`. Every AM channel
+  gets the same ±4 kHz filter, which holds the voice on any of them.
+* **Uploads** carry `mode=am` and `decoder=AM`, so keyup treats the calls as analog. Give the
+  airband its own `system` (below). On the keyup side the built-in `AM airband` audio profile
+  and per-system transcription settings suit these calls; see
+  [Transcription](../transcription.md#per-system-settings).
 
 ### Tone squelch or carrier squelch
 
@@ -211,26 +248,27 @@ optional:
 | `talkgroup` | `frequency / 1000` | 154.250 MHz becomes `154250`. If an existing archive already uses a number for this channel, keep it. |
 | `site` | `[uplink] site_label`, then the device id | Site label recorded on the calls. |
 | `device` | automatic | The tuner carrying the channel. Unset picks the one device whose span covers the frequency. |
-| `deemphasis_us` | `750` | De-emphasis time constant; `0` disables it. |
+| `mode` | `"nbfm"` | `"nbfm"` or `"am"` ([AM airband channels](#am-airband-channels)). |
+| `deemphasis_us` | `750` | NBFM de-emphasis time constant; `0` disables it. Ignored for AM. |
 | `enabled` | `true` | A disabled channel stays in the file and is not checked or started. |
 
 !!! tip "Give analog channels their own `system`"
     Left unset, `system` falls back to `[uplink] system_label`, which files your analog calls
     as talkgroups of the **P25 system**. A made-up talkgroup number can then collide with a
-    real P25 talkgroup, and the exporters publish the calls as part of the P25 system. With
-    trunkd v0.2.2 and keyup v0.1.1 or later, analog calls never go to Broadcastify Calls
-    (you need both upgrades; older releases sent them there like P25 talkgroups), but the
-    Broadcastify Feed and OpenMHz still take them unless you leave them out. A separate label
-    such as `"Example County Fire"` keeps them apart. See
-    [Exporters](../exporters.md#analog-conventional-calls) before you publish anything.
+    real P25 talkgroup. With trunkd v0.2.2 and keyup v0.1.1 or later, analog calls never go to
+    Broadcastify Calls under the P25 system's account (you need both upgrades; older releases
+    sent them there like P25 talkgroups), and from keyup v0.2.0 they do not go to the
+    system's OpenMHz account either. The Broadcastify Feed still takes them unless you leave
+    them out. A separate label such as `"Example County Fire"` keeps them apart, and lets
+    keyup give them their own export destinations and transcription settings. See
+    [Exporters](../exporters.md#conventional-systems) before you publish anything.
 
 `[recorder] skip_talkgroups` never applies to conventional channels: to stop recording one,
 set `enabled = false`.
 
 ### What is checked at start-up
 
-Each of these is a start-up error naming the channel (only enabled NBFM channels are
-checked):
+Each of these is a start-up error naming the channel (only enabled channels are checked):
 
 * the device exists (or exactly one device covers the frequency), has a `center_frequency`,
   and a sample rate the channelizer can drive;
@@ -240,7 +278,8 @@ checked):
 * no two channels on one device are closer than 6.25 kHz;
 * no channel is closer than 12.5 kHz to a control-channel candidate of an enabled site on
   the same device;
-* `tone` parses, `bandwidth_hz` is `12500`, and `open_db` is greater than `close_db`;
+* `tone` parses (and is absent on an AM channel), `bandwidth_hz` is `12500` for NBFM or
+  `8333`, `12500` or `25000` for AM, and `open_db` is greater than `close_db`;
 * (`system`, `talkgroup`) is unique across channels.
 
 A channel inside the outer 1 % of the capture only gets a warning.

@@ -4,9 +4,9 @@ Two programs that together turn a P25 trunked radio system into a searchable, tr
 
 - **[trunkd](https://github.com/pwsh/trunkd)** is the recorder. It takes a wideband capture from
   one or more SDRs, follows a site's control channel, records every voice call it is granted,
-  decodes the IMBE voice and uploads each finished call as an MP3. It also records analog NBFM
-  conventional channels from the same capture. One binary, no runtime to install; it runs as a
-  systemd unit on Linux or as a Windows service.
+  decodes the IMBE voice and uploads each finished call as an MP3. It also records analog
+  conventional channels (NBFM, and AM in the airband) from the same capture. One binary, no
+  runtime to install; it runs as a systemd unit on Linux or as a Windows service.
 - **[keyup](https://github.com/pwsh/keyup)** is the archive server. It takes the calls trunkd (or
   sdrtrunk, or trunk-recorder) sends it, cleans up the audio, transcribes it with Whisper, and
   stores everything in PostgreSQL behind a web interface, a search API and a live feed. It runs
@@ -36,7 +36,7 @@ configuration) need both.
 
 ## What it does not do
 
-- P25 Phase 2 (TDMA), AMBE, DMR, NXDN and AM channels are not supported yet.
+- P25 Phase 2 (TDMA), AMBE, DMR, NXDN and wideband (25 kHz) FM channels are not supported yet.
 - **Encrypted calls are never decoded.** trunkd records them as metadata only (talkgroup, radios,
   timing) and uploads no audio.
 
@@ -57,6 +57,8 @@ comfortable at a shell prompt and with editing a config file. No programming is 
 | Point a recorder at the archive | [Connect trunkd to keyup](connect.md) |
 | Fill in your system's sites and talkgroups | [From RadioReference](configure/radioreference.md), [manually](configure/manual.md) or [from an sdrtrunk playlist](configure/sdrtrunk-import.md) |
 | Choose where transcription runs | [Transcription](transcription.md) |
+| Name who was paged from pager tones | [Tone pages](pages.md) |
+| Put names on the radios you hear | [Radio names](radios.md) |
 | Serve keyup over HTTPS | [TLS and reverse proxies](tls.md) |
 | Keep it running | [Operations](operations.md) and [Troubleshooting](troubleshooting.md) |
 | Know what you may record and publish | [Legal and privacy](legal-privacy.md) |

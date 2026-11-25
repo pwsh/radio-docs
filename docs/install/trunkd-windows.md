@@ -7,9 +7,9 @@ running, as a Windows service. This page is the guided version of trunkd's
 itself runs on Linux with Docker; a Windows PC is a good home for the recorder when that is where
 the antenna is.
 
-<!-- Commands on this page are copied from trunkd v0.2.2 docs/install-windows.md,
+<!-- Commands on this page are copied from trunkd v0.3.1 docs/install-windows.md,
      docs/windows-service.md and docs/sdr-hardware.md; the release-zip steps follow the archive
-     layout made by .github/workflows/release.yml at v0.2.2. Not verified on a clean host by the docs
+     layout made by .github/workflows/release.yml at v0.3.1. Not verified on a clean host by the docs
      build. -->
 
 Everything below runs in PowerShell. The layout used throughout is one directory, `C:\trunkd`:

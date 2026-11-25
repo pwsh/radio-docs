@@ -6,8 +6,8 @@ copied into this site when it is built, so they always match one pinned release 
 
 | Repository | Pinned at | Source |
 |---|---|---|
-| trunkd | tag `v0.2.2` | [github.com/pwsh/trunkd](https://github.com/pwsh/trunkd/tree/v0.2.2/docs) |
-| keyup | tag `v0.1.1` | [github.com/pwsh/keyup](https://github.com/pwsh/keyup/tree/v0.1.1/docs) |
+| trunkd | tag `v0.3.1` | [github.com/pwsh/trunkd](https://github.com/pwsh/trunkd/tree/v0.3.1/docs) |
+| keyup | tag `v0.2.0` | [github.com/pwsh/keyup](https://github.com/pwsh/keyup/tree/v0.2.0/docs) |
 
 These pages were written to be read next to the code. Where one links to a source file, a
 script or the example configuration, the link goes to that file on GitHub at the same pinned
@@ -41,17 +41,20 @@ The P25 Phase 1 trunking recorder.
 The call archive, transcription and web interface.
 
 - **Getting calls in:** [Pointing a recorder at keyup](keyup/RECORDERS.md),
-  [Talkgroup fields](keyup/TALKGROUPS.md), [Site channel audit](keyup/CHANNEL_AUDIT.md)
+  [Talkgroup fields](keyup/TALKGROUPS.md) (also radio aliases, their provenance and suggestions),
+  [Importing a radio alias list](keyup/RADIO_IMPORT.md),
+  [Site channel audit](keyup/CHANNEL_AUDIT.md)
   (RadioReference sync), [Migrating an sdrtrunk archive](keyup/MIGRATION.md).
 - **Processing:** [Speech-to-text](keyup/STT.md), [Audio profiles](keyup/AUDIO.md),
-  [Radio events](keyup/RADIO_EVENTS.md), [Call reconciliation](keyup/RECONCILIATION.md).
+  [Radio events](keyup/RADIO_EVENTS.md), [Tone pages](keyup/TONE_PAGES.md) (who was paged),
+  [Call reconciliation](keyup/RECONCILIATION.md).
 - **Serving and sharing:** [HTTPS](keyup/HTTPS.md), [Reverse proxy](keyup/REVERSE-PROXY.md),
   [Exporters](keyup/EXPORTERS.md) (Broadcastify and OpenMHz),
   [Broadcastify feed statistics](keyup/BCFY_STATS.md), [Links and webhooks](keyup/WEBHOOKS.md),
   [RSS and Atom feeds](keyup/FEEDS.md), [Embedding transcripts](keyup/EMBED.md),
   [Analytics](keyup/ANALYTICS.md).
 - **Running it:** [Operating the database](keyup/OPERATIONS.md) (memory sizing, vacuum, indexes,
-  backups and the restore drill, health alerts).
+  backups and the restore drill, health alerts, and what guests see of radio names).
 - **Internals and design notes:** [Architecture](keyup/ARCHITECTURE.md),
   [RadioReference write-back](keyup/RR_WRITEBACK.md) (a feasibility study; not built),
   [Word clouds](keyup/WORD_CLOUD.md) (a design note; not built).

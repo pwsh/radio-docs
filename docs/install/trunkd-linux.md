@@ -5,9 +5,10 @@ need the equivalent packages). This is the guided version of trunkd's
 [install-linux.md](../reference/trunkd/install-linux.md); the
 reference pages linked below go deeper.
 
-<!-- Commands on this page are copied from trunkd v0.2.2 docs/install-linux.md and
-     docs/sdr-hardware.md, except the release-archive steps, which follow the archive layout
-     made by .github/workflows/release.yml at v0.2.2. Not verified on a clean host by the docs build. -->
+<!-- Commands on this page are copied from trunkd v0.3.1 docs/install-linux.md,
+     docs/sdr-hardware.md and scripts/linux/README.md, except the release-archive steps, which
+     follow the archive layout made by .github/workflows/release.yml at v0.3.1. Not verified on a
+     clean host by the docs build. -->
 
 What you need:
 
@@ -28,25 +29,30 @@ What you need:
 
     ```bash
     sha256sum -c --ignore-missing SHA256SUMS
-    tar -xzf trunkd-v0.2.2-x86_64-unknown-linux-gnu.tar.gz
-    cd trunkd-v0.2.2-x86_64-unknown-linux-gnu
+    tar -xzf trunkd-v0.3.1-x86_64-unknown-linux-gnu.tar.gz
+    cd trunkd-v0.3.1-x86_64-unknown-linux-gnu
     ./trunkd --version
     ```
 
     The archive unpacks to one directory:
 
     ```text
-    trunkd-v0.2.2-x86_64-unknown-linux-gnu/
+    trunkd-v0.3.1-x86_64-unknown-linux-gnu/
     ├── trunkd
     ├── trunkd.example.toml
     ├── LICENSE  NOTICE.md  README.md  CHANGELOG.md  THIRD-PARTY.md
-    └── systemd/
-        ├── trunkd.service     # the unit used in step 5
-        └── README.md          # its settings, and a variant for running as your own user
+    ├── systemd/
+    │   ├── trunkd.service     # the unit used in step 5
+    │   └── README.md          # its settings, and a variant for running as your own user
+    └── update/                # the updater and the ntfy watchdog (see Upgrading)
+        ├── update-trunkd.sh  trunkd-update.service  trunkd-update.timer  update.conf.example
+        ├── trunkd-watch.sh   trunkd-watch.service   trunkd-watch.timer   watch.conf.example
+        └── README.md
     ```
 
     Run the rest of this page from that directory. Archives before v0.2.2 have no `systemd/`
-    directory; take the two files from the repository's `scripts/systemd/` at your version.
+    directory, and archives before v0.3.0 no `update/`; take the files from the repository's
+    `scripts/systemd/` and `scripts/linux/` at your version.
 
 === "From source"
 
@@ -208,6 +214,46 @@ agree to within 30 s for the recorder link to work. Run an NTP client: `timedate
 `System clock synchronized: yes`. Chrony against a nearby server is better than the distribution
 default.
 
+## 7. Reach the panel from another machine
+
+The local panel (`[server] enabled = true`) binds to loopback, so on a headless box or in a
+container you cannot open it from your desk as it stands. Either tunnel it over SSH:
+
+```bash
+ssh -L 8080:127.0.0.1:8080 <recorder host>      # then browse http://127.0.0.1:8080
+```
+
+or put it on the LAN with a token:
+
+```toml
+[server]
+enabled    = true
+bind       = "0.0.0.0:8080"
+tokens     = ["<long random string>"]            # openssl rand -hex 24
+public_url = "http://recorder.example.lan:8080"  # the name you browse to
+```
+
+Set `public_url` when you reach the panel by a DNS name rather than an IP address: the panel's
+host and origin checks only accept the bind address and that URL. Paste the token into the
+page's token box once; the browser keeps it. A change to `bind` needs a restart
+(`sudo systemctl restart trunkd`).
+
+From trunkd v0.3.0, `[server] auth` chooses which requests need the token:
+
+| `auth` | Reads (status, config, live audio) | Buttons (restart a tuner, hold uploads, edit devices) |
+| --- | --- | --- |
+| `auto` (default) | as `token` when `tokens` is set, otherwise as `loopback` | (the same) |
+| `token` | token required | token required |
+| `changes` | open | token required, from the box itself too |
+| `loopback` | open | only from the box itself |
+| `none` | open | open to anyone who can reach the panel |
+
+`token` and `changes` need at least one entry in `tokens`, or the config does not load.
+`changes` is the usual choice on a LAN: anyone can read the status, and only someone with the
+token can press a button. Use `none` only on a network where everyone who can reach the panel
+may restart tuners and edit devices. The host and origin checks apply in every mode. Details:
+trunkd's [panel.md](../reference/trunkd/panel.md#security).
+
 ## Upgrading
 
 From a source checkout:
@@ -223,6 +269,58 @@ restart. New config keys come with defaults, so an existing file keeps working; 
 changelog for anything that changed meaning. The panel's `/about` page shows which build is
 running.
 
+### Automatic updates
+
+From trunkd v0.3.0, `update-trunkd.sh` and a daily timer do the same unattended. By default it
+takes the latest **published** GitHub release (drafts and pre-releases are ignored), checks the
+tarball against the release's `SHA256SUMS`, and compiles nothing on the box. Each run:
+
+1. **Pre-flight:** runs the new binary's `check` against `/etc/trunkd/trunkd.toml` as the
+   `trunkd` user. A build that rejects your config is never installed.
+2. **Install:** keeps the running binary as `/usr/local/bin/trunkd.prev`, moves the new one into
+   place and restarts `trunkd.service` (a clean stop: open calls finish, the spool is kept).
+3. **Verify:** polls the local panel until every enabled P25 site tuner is locked again (up to
+   120 s). A recorder with only conventional channels passes once it has stayed up for 20 s;
+   with the panel disabled, once the service has stayed up for 30 s.
+4. **Roll back** to `trunkd.prev` if verification fails. The run then exits 1, so the timer's
+   unit shows as failed.
+
+Install it as root, from the unpacked release (`update/`) or a source checkout
+(`scripts/linux/`):
+
+```bash
+sudo install -m 0755 update/update-trunkd.sh /usr/local/sbin/update-trunkd.sh
+sudo install -m 0644 update/trunkd-update.service update/trunkd-update.timer /etc/systemd/system/
+sudo install -m 0644 update/update.conf.example /etc/trunkd/update.conf   # optional
+sudo systemctl daemon-reload
+sudo update-trunkd.sh --check          # 0 = up to date, 10 = an update is available
+sudo systemctl enable --now trunkd-update.timer
+```
+
+The timer fires daily at 04:30 local time, plus up to 30 minutes of random delay, and runs at
+boot if the box was off then. `journalctl -u trunkd-update` shows what the runs did, and
+`sudo systemctl start trunkd-update` runs one now.
+
+Settings live in `/etc/trunkd/update.conf` (shell syntax; every line optional). The ones you
+are most likely to want:
+
+| Setting | Default | What it does |
+| --- | --- | --- |
+| `SOURCE` | `release` | `release` takes the published build; `git` clones `GIT_URL` and builds `GIT_REF` on the box (needs Rust and a C compiler) |
+| `PIN` | empty (any newer) | `PIN=0.3` takes 0.3.x updates only; a 0.4.0 waits until you change it |
+| `LOCK_TIMEOUT` | `120` | Seconds for the site tuners to lock after the restart |
+| `TRACK` | `version` | `SOURCE=git` only: build when the version goes up, or `commit` for every new commit |
+
+Use `SOURCE=release` on a recorder where you can: a build competes with the DSP thread for the
+CPU. Only x86-64 builds are published, so another architecture needs `SOURCE=git`. The script's
+exit codes, the `--stage-only`, `--force` and `--no-rollback` options and the state it keeps are
+in
+[scripts/linux/README.md](https://github.com/pwsh/trunkd/blob/v0.3.1/scripts/linux/README.md)
+(`update/README.md` in the release archive).
+
+To be told when an update fails, or anything else on the box goes wrong, add the ntfy
+watchdog: [Operations](../operations.md#alerts-to-ntfy-linux).
+
 ## Next
 
 - [Connect trunkd to keyup](../connect.md)
@@ -231,6 +329,6 @@ running.
 - trunkd reference: [configuration.md](../reference/trunkd/configuration.md)
   (every table in the config file),
   [panel.md](../reference/trunkd/panel.md) (the local web panel),
-  [scripts/systemd/README.md](https://github.com/pwsh/trunkd/blob/v0.2.2/scripts/systemd/README.md)
+  [scripts/systemd/README.md](https://github.com/pwsh/trunkd/blob/v0.3.1/scripts/systemd/README.md)
   (`systemd/README.md` in the release archive: the unit's settings, and a variant for running as
   your own user)

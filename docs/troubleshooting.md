@@ -101,8 +101,9 @@ Check the panel's channels table, or `curl -s localhost:8080/api/status | jq .ch
 | `tone_mismatch` climbing | Another user on the frequency with a different tone | Expected with a `tone` set; those openings are discarded on purpose |
 | Many `calls_too_short` | Kerchunks or noise bursts shorter than `min_call_ms` (500) | Usually correct; lower `min_call_ms` only if real calls are being dropped |
 | Calls cut into pieces | Transmissions longer than `max_call_s` (180), or gaps longer than `hang_ms` (1000) | Raise `max_call_s` or `hang_ms` |
-| Channel never records, warning at start | `mode = "am"` (accepted but skipped) | Only NBFM is recorded |
-| Startup error on `bandwidth_hz` | `25000` (wideband) is refused | Only 12.5 kHz channels are supported |
+| AM channel never records, warning at start | trunkd older than v0.3.0 accepts `mode = "am"` but skips it | Upgrade trunkd; v0.3.0 records AM ([AM airband channels](configure/manual.md#am-airband-channels)) |
+| Startup error `tone is NBFM only` | A `tone` on an AM channel | AM is carrier squelch only; remove `tone` |
+| Startup error on `bandwidth_hz` | `25000` (wideband) on an NBFM channel is refused | Only 12.5 kHz FM channels are supported; AM takes `8333`, `12500` or `25000` |
 | Every channel on a tuner noisy | Front end overloaded | Reduce gain until the noise floor stops falling with it |
 
 A tuner that carries only channels never logs `control channel acquired`. That is expected.
@@ -140,6 +141,20 @@ Read the monitor log (`trunkd-monitor.log.<date>`). It names the rule that fired
 | failed unit | A unit used up its restart budget | Read the recorder log just before the restart |
 | Panel answers 401/403 to the monitor (logged once) | Panel tokens set, monitor has none | Pass `--token`, set `TRUNKD_MONITOR_TOKEN`, or give it `--config` |
 
+### The panel refuses a request
+
+The local panel's `[server] auth` decides which requests need a token
+([trunkd on Linux](install/trunkd-linux.md#7-reach-the-panel-from-another-machine)).
+
+| Symptom | Likely cause | Fix |
+| --- | --- | --- |
+| Buttons answer **403** from another machine, reads work | No `tokens` set, so `auto` means `loopback`: buttons only from the box itself | Set `tokens` and `auth = "changes"`, or use an SSH tunnel |
+| Everything answers **401** | `tokens` set, so `auto` means `token` | Paste the token into the page's token box, or set `auth = "changes"` to open reads |
+| Buttons answer **401** on the box itself | `auth = "changes"` needs the token from loopback too | Paste the token; the browser keeps it |
+| Config does not load after setting `auth` | `token` and `changes` need at least one entry in `tokens` | Add a token |
+| Opened by a DNS name, the panel refuses the request | The host and origin checks accept only the bind address and `public_url` | Set `[server] public_url` to the URL you browse to |
+| The ntfy watchdog cannot read the panel | `PANEL_URL` wrong, or `auth` needs a token for reads | Check `PANEL_URL` in `/etc/trunkd/watch.conf`; with `auth = "token"` set `PANEL_TOKEN` there too (the updater reads the token from `[server]` itself) |
+
 ### Timestamps are off
 
 | Symptom | Likely cause | Fix |
@@ -171,6 +186,18 @@ What the worker reports about each backend:
 curl -s -H "Authorization: Bearer $KEYUP_ADMIN_TOKEN" localhost:8096/api/admin/stt/backends \
   | jq '.backends[] | {name, healthy, stale, in_flight, mean_rtf, last_error}'
 ```
+
+### Calls not exported
+
+Admin → Exports shows each service's ledger, and every skipped call carries a reason.
+
+| Reason or symptom | Likely cause | Fix |
+| --- | --- | --- |
+| `not_trunked` | The call is conventional: its system is not marked trunked, or trunkd marked it `nbfm` or `am`. From keyup v0.2.0 such calls go only to a destination of their own system | Mark a P25 system **Trunked** on the Sites page, or give the conventional system its own destination ([Exporters](exporters.md#conventional-systems)) |
+| `no_bcfy_slot` | A conventional channel bound for its system's own Broadcastify Calls account has no frequency-slot id | Enter the **Broadcastify slot** in that talkgroup's edit dialog |
+| `no_destination` | The service has no global account and this call's system has none of its own | Add one or the other |
+| Analog channel calls stopped appearing on OpenMHz after upgrading to keyup v0.2.0 | Expected: analog calls no longer go to the global OpenMHz system | Give the channel's system its own OpenMHz short name and key |
+| Nothing uploads at all, switch on | `configured: false`: a credential is missing | Enter it in Admin → Exports |
 
 ### Slow search, or 503 with Retry-After
 

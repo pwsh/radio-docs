@@ -2,10 +2,10 @@
 
 keyup runs as a Docker Compose stack on a Linux host. One script, `scripts/bootstrap.sh`, takes a
 fresh checkout to a running archive with an admin account and a recorder token. This page walks
-through it; keyup's [README](https://github.com/pwsh/keyup/blob/v0.1.1/README.md) and
-[`.env.example`](https://github.com/pwsh/keyup/blob/v0.1.1/.env.example) are the reference.
+through it; keyup's [README](https://github.com/pwsh/keyup/blob/v0.2.0/README.md) and
+[`.env.example`](https://github.com/pwsh/keyup/blob/v0.2.0/.env.example) are the reference.
 
-<!-- Commands on this page are copied from keyup v0.1.1 README.md, scripts/bootstrap.sh,
+<!-- Commands on this page are copied from keyup v0.2.0 README.md, scripts/bootstrap.sh,
      scripts/update.sh, docs/RECORDERS.md and docs/STT.md. Not verified on a clean host by the
      docs build. -->
 
@@ -82,6 +82,7 @@ All configuration lives in `.env` beside `compose.yaml`; each key is explained i
 | `PUBLIC_URL`, `PUBLIC_BASE_URL` | set by bootstrap | The address people and recorders reach keyup at. Used in the printed `[uplink]` block, in alert links, and (when `https`) for the Secure cookie flag. |
 | `TZ` | the host's | The recorders' wall-clock zone, an IANA name such as `America/New_York`. |
 | `AUTH_REQUIRE_READ` | `false` | Whether reading the archive needs a sign-in. See below. |
+| `GUEST_RADIO_VISIBILITY` | `on_air_only` | Which radio names a visitor who is not signed in sees (from keyup v0.2.0). Only the first value; afterwards **Admin → Settings → Access** wins. See below. |
 | `COMPOSE_PROFILES` | `stt-cpu` | Optional services to start. Blank when transcription runs on another machine. |
 | `STT_CPU_MODEL`, `STT_CPU_THREADS` | `Systran/faster-whisper-small`, `0` (all) | The CPU transcription model, and how many cores one transcription may use. |
 | `WEB_PORT`, `WEB_TLS_PORT` | `8095`, `8443` | The host ports of the `edge` front door (HTTP and HTTPS). |
@@ -100,6 +101,12 @@ real people and addresses, so set `AUTH_REQUIRE_READ=true` in `.env` (then
 `docker compose up -d`) before the archive is reachable by anyone you would not show every
 transcript to. The bootstrap script warns about this at the end. See
 [Legal and privacy](../legal-privacy.md).
+
+With reads open, `guest_radio_visibility` decides how much of the **radio directory** a guest
+sees. The default, `on_air_only`, shows the alias each radio sent on air, its ID and the unit
+callsign from your roster, and keeps the radio pages and any alias typed in or imported for
+signed-in readers; `hidden` shows guests no radio identity at all; `public` shows them
+everything. See [Legal and privacy](../legal-privacy.md#radio-names-and-guests).
 
 ### Ports
 
@@ -140,7 +147,9 @@ scripts/update.sh             # or: make update
 It runs `git pull --ff-only`, builds the new images while the old containers keep serving, runs
 the database migrations, restarts the stack and waits for it to report healthy. It stops at the
 first step that fails, and never touches `.env`. Back up the database before a release whose
-notes mention a migration you cannot undo; see [Operations](../operations.md).
+notes mention a migration you cannot undo; see [Operations](../operations.md). Upgrading to
+v0.2.0 runs seven migrations this way and changes what guests see of radio names; read
+[Upgrading to keyup v0.2.0](../operations.md#updating-keyup) first.
 
 ## Next
 
